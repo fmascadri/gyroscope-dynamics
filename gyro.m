@@ -5,7 +5,7 @@
 % solved using an ODE solver for the parameters and initial conditions
 % given and the results are plotted and animations generated.
 
-% Further details are contained in the discussion document.
+% Further details on the modelling are contained in the discussion document.
 
 clear all
 
@@ -55,15 +55,15 @@ I_3_a_G = m1*[(3*r^2+H^2)/12 0 0; ...
               0 (3*r^2+H^2)/12 0; ...
               0 0 0.5*r^2];
 
-% Frame part b - Torus 'purple ring' in frame 3 about centre of gravity of frame G
-I_3_b_G = m2*[(5/8)*r^2 + 0.5*Ro^2 0 0; ...
-              0 (3/4)*r^2 + Ro^2 0; ...
-              0 0 (5/8)*r^2 + 0.5*Ro^2];
-
-% Frame part c - Torus 'pink ring' in frame 3 about centre of gravity of frame G
-I_3_c_G = m3*[(5/8)*r^2 + 0.5*Ro^2 0 0; ...
+% Frame part b - Torus 'vertical ring' in frame 3 about centre of gravity of frame G
+I_3_b_G = m2*[(3/4)*r^2 + Ro^2 0 0; ...
               0 (5/8)*r^2 + 0.5*Ro^2 0; ...
               0 0 (3/4)*r^2 + Ro^2];
+
+% Frame part c - Torus 'horiztonal ring' in frame 3 about centre of gravity of frame G
+I_3_c_G = m3*[(3/4)*r^2 + Ro^2 0 0; ...
+              0 (3/4)*r^2 + Ro^2 0; ...
+              0 0 (5/8)*r^2 + 0.5*Ro^2];
 
 % Frame total
 I_3_frame_G = I_3_a_G + I_3_b_G + I_3_c_G;
@@ -74,47 +74,82 @@ I_4_rotor_G = m4*[(3*Ri^2+h^2)/12 0 0; ...
                   0 0 0.5*Ri^2];
 
 %% Gravity forces
-G_frame_3 = [0; 0; (m1+m2+m3)*g];               % Weight force of Frame in frame 3
-G_rotor_4 = [0; 0; m4*g];                       % Weight force of Rotor in frame 4
-G_frame_0 = R_0_1*R_1_2*R_2_3*G_frame_3;        % Weight force of Frame in frame 0
-G_rotor_0 = R_0_1*R_1_2*R_2_3*R_3_4*G_rotor_4;  % Weight force of Rotor in frame 0
+G_frame_0 = [0; 0; -(m1+m2+m3)*g];              % Weight force of Frame in frame 0
+G_rotor_0 = [0; 0; -m4*g];                      % Weight force of Rotor in frame 0
 
 %% Kinematic quantities
 % Kinematic quantities for Frame of gyroscope
-% Angular
+% -- Frame 1 --
 omega_1_1 = [0; -alpha_dot; 0];
-omega_2_21 = [beta_dot; 0; 0]; % i.e. relative velocity of frame 2, relative to frame 1
+omega_1_1_dot = diff(omega_1_1);
+
+r_1_O1_G1 = [0; 0; L];
+r_1_O1_G1_dot = deriv(t,r_1_O1_G1,omega_1_1);
+r_1_O1_G1_ddot = deriv(t,r_1_O1_G1_dot,omega_1_1);
+
+% All zero valued in this case
+r_1_O1_O2 = [0; 0; 0]; % same axes
+r_1_O1_O2_dot = deriv(t,r_1_O1_O2,omega_1_1);
+r_1_O1_O2_ddot = deriv(t,r_1_O1_O2_dot,omega_1_1);
+
+% -- Frame 2 --
+omega_2_21 = [beta_dot; 0; 0]; % i.e. velocity of frame 2, relative to frame 1
+omega_2_2 = transpose(R_1_2)*omega_1_1 + omega_2_21;
+omega_2_2_dot = transpose(R_1_2)*omega_1_1_dot + deriv(t,omega_2_21,omega_2_2);
+
+r_2_O1_O2_ddot = transpose(R_1_2)*r_1_O1_O2_ddot;
+
+r_2_O2_G2 = [0;0;L];
+r_2_O2_G2_dot = deriv(t,r_2_O2_G2,omega_2_2);
+r_2_O2_G2_ddot = deriv(t,r_2_O2_G2_dot,omega_2_2);
+
+r_2_O1_G2_ddot = r_2_O1_O2_ddot + r_2_O2_G2_ddot;
+
+% All zero valued in this case
+r_2_O2_O3 = [0; 0; 0]; % same axes
+r_2_O2_O3_dot = deriv(t,r_2_O2_O3,omega_2_2);
+r_2_O2_O3_ddot = deriv(t,r_2_O2_O3_dot,omega_2_2);
+
+% -- Frame 3 --
 omega_3_32 = [0; 0; gamma_dot];
-omega_3_3 = transpose(R_1_2*R_2_3)*omega_1_1 + transpose(R_2_3)*omega_2_21 + omega_3_32; % absolute angular velocity of gyro frame, represented in frame 3
-omega_dot_3_3 = diff(omega_3_3, t);
+omega_3_3 = transpose(R_2_3)*omega_2_2 + omega_3_32;
+omega_3_3_dot = transpose(R_2_3)*omega_2_2_dot + deriv(t,omega_3_32,omega_3_3);
 
-% Linear
-r_3_OGf = [0; 0; L];
-r_3_OGf_dot = diff(r_3_OGf, t) + cross(omega_3_3,r_3_OGf);
-r_3_OGf_ddot = diff(r_3_OGf_dot, t) + cross(omega_3_3, r_3_OGf_dot);
+r_3_O1_O3_ddot = transpose(R_2_3)*r_2_O1_O2_ddot;
 
-% Kinematic quanitites for Rotor of gyroscope
-% Angular
+r_3_O3_G3 = [0;0;L];
+r_3_O3_G3_dot = deriv(t,r_3_O3_G3,omega_3_3);
+r_3_O3_G3_ddot = deriv(t,r_3_O3_G3_dot,omega_3_3);
+
+r_3_O1_G3_ddot = r_3_O1_O3_ddot + r_3_O3_G3_ddot;
+
+r_3_O3_O4 = [0; 0; L]; % origin of frame 4, rotor, is at L above ground
+r_3_O3_O4_dot = deriv(t,r_3_O3_O4,omega_3_3);
+r_3_O3_O4_ddot = deriv(t,r_3_O3_O4_dot,omega_3_3);
+
+% -- Frame 4 --
 omega_4_43 = [0; 0; delta_dot];
-omega_dot_4_43 = [0; 0; delta_ddot];
 omega_4_4 = transpose(R_3_4)*omega_3_3 + omega_4_43;
-omega_dot_4_4 = diff(omega_4_4);
+omega_4_4_dot = transpose(R_3_4)*omega_3_3_dot + deriv(t,omega_4_43,omega_4_4);
 
-% Linear
-r_4_OGr = [0; 0; L];
-r_4_OGr_dot = diff(r_4_OGr, t) + cross(omega_4_4,r_4_OGr);
-r_4_OGr_ddot = diff(r_4_OGr_dot, t) + cross(omega_4_4, r_4_OGr_dot);
+r_4_O1_O4_ddot = transpose(R_3_4)*r_3_O1_O3_ddot;
+
+r_4_O4_G4 = [0;0;0]; % origin of frame 4 is coincident with G4
+r_4_O4_G4_dot = deriv(t,r_4_O4_G4,omega_4_4);
+r_4_O4_G4_ddot = deriv(t,r_4_O4_G4_dot,omega_4_4);
+
+r_4_O1_G4_ddot = r_4_O1_O4_ddot + r_4_O4_G4_ddot;
 
 %% Newton-Euler equations
 
 % NE equations starting from Rotor
-F_4_4 = m4*r_4_OGr_ddot - transpose(R_0_1*R_1_2*R_2_3*R_3_4)*G_rotor_0;
-M_4_4 = cross(r_4_OGr, F_4_4) + I_4_rotor_G*omega_dot_4_4 + cross(omega_4_4, I_4_rotor_G*omega_4_4);
+F_4_4 = m4*r_4_O1_G4_ddot - transpose(R_0_1*R_1_2*R_2_3*R_3_4)*G_rotor_0;
+M_4_4 = cross(r_4_O4_G4, F_4_4) + I_4_rotor_G*omega_4_4_dot + cross(omega_4_4, I_4_rotor_G*omega_4_4);
 
 % NE equations of Frame
-F_3_3 = (m1+m2+m3)*r_3_OGf_ddot + R_3_4*F_4_4 - transpose(R_0_1*R_1_2*R_2_3)*G_frame_0;
-M_3_3 = R_3_4*M_4_4 + cross(r_3_OGf, F_3_3) + cross(r_3_OGf, R_3_4*F_4_4) + ...
-    I_3_frame_G*omega_dot_3_3 + cross(omega_3_3, I_3_frame_G*omega_3_3);
+F_3_3 = (m1+m2+m3)*r_3_O1_G3_ddot + R_3_4*F_4_4 - transpose(R_0_1*R_1_2*R_2_3)*G_frame_0;
+M_3_3 = R_3_4*M_4_4 + cross(r_3_O3_G3, F_3_3) + ...
+    I_3_frame_G*omega_3_3_dot + cross(omega_3_3, I_3_frame_G*omega_3_3);
 
 %% EOM
 
@@ -169,16 +204,16 @@ H = 0.08;   % height of cylindrical rod [m]
 h = 0.007;  % height of rotor [m]
 Ro = 0.035; % major radius of frame torus [m];
 Ri = 0.030; % radius of rotor [m]
-L = 0.047;  % distance from O to G [m]
+L = 0.040;  % distance from O to G [m]
 
 % Masses
-m1 = 0.02;      % mass of cylindrical rod [kg]
-m2 = 0.0115;    % mass of torus [kg]
-m3 = 0.0115;    % mass of second torus [kg]
-m4 = 0.045;     % mass of rotor [kg]
+m1 = 0.010;      % mass of cylindrical rod [kg]
+m2 = 0.015;    % mass of torus [kg]
+m3 = 0.015;    % mass of second torus [kg]
+m4 = 0.07;     % mass of rotor [kg] 
 
 % Gravitational acceleration
-g = -9.81;   % [m/s^2]
+g = 9.81;   % [m/s^2]
 
 % Substitute parameter values into the equations 
 eq1 = subs(a_dd);
@@ -214,22 +249,23 @@ eq4_xvars = subs(eq4, {a,b,c,d,...
 % These four equations are substituted into the xdot state matrix for the
 % functions of alpha_ddot, beta_ddot, gamma_ddot, delta_ddot
 
+
 %% ODE solving
 
 % Initial conditions
 alpha_0 = deg2rad(5);
-beta_0 = deg2rad(5);
-gamma_0 = deg2rad(5);
+beta_0 = deg2rad(0);
+gamma_0 = deg2rad(0);
 delta_0 = 0;
-alpha_dot_0 = deg2rad(-10);
-beta_dot_0 = deg2rad(10);
-gamma_dot_0 = deg2rad(10);
-delta_dot_0 = 50;  % rad/s
+alpha_dot_0 = deg2rad(0);
+beta_dot_0 = deg2rad(0);
+gamma_dot_0 = deg2rad(0);
+delta_dot_0 = 300;  % rad/s
 x0 = [alpha_0; beta_0; gamma_0; delta_0; alpha_dot_0; beta_dot_0; gamma_dot_0;
      delta_dot_0];
 
 %  Time 
-dt = 0.03;
+dt = 0.01; % seconds
 tspan = [0 10]; % seconds
 options = odeset('RelTol',1e-7,'AbsTol',1e-7);
 
@@ -334,9 +370,9 @@ end
     z4 = z4+(L-h/2); % shift z coord up along L
    
     % bottom cap surface coords
-    x5 = x4(end,:);
-    y5 = y4(end,:);
-    z5 = z4(end,:);
+    x5 = x4(1,:);
+    y5 = y4(1,:);
+    z5 = z4(1,:);
     [px5,py5,pz5] = create_pinwheel(x5,y5,z5);
 
     % top cap surface coords
@@ -360,8 +396,13 @@ if VIDEO
 end
 
 handle = figure;
-set(gcf, 'Position',  [100, 100, 600, 600])
-hold on; grid on;
+set(gcf, 'Position',  [100, 100, 1080, 1080])
+hold on;
+
+% top of gyro trace
+top_x = ones(1,120)*100;
+top_y = ones(1,120)*100;
+top_z = ones(1,120)*100;
 
 % Main animation loop
 for i = 1:length(t)
@@ -370,9 +411,9 @@ for i = 1:length(t)
     MANUAL_TESTING = 0;
     if MANUAL_TESTING
         % Manual inputs to test gyro configuration
-        alpha = deg2rad(15);
-        beta = deg2rad(15);
-        gamma = deg2rad(-15);
+        alpha = deg2rad(0);
+        beta = deg2rad(5);
+        gamma = deg2rad(0);
         delta = deg2rad(0);
     else
         % Values of angles from ODE solution
@@ -420,14 +461,26 @@ for i = 1:length(t)
     [px6_rotated,py6_rotated,pz6_rotated] = rotation(px6,py6,pz6,R_0_1*R_1_2*R_2_3*R_3_4);
     patch(px6_rotated,py6_rotated,pz6_rotated,pinwheel_colormap,'FaceColor', 'flat', 'EdgeColor', 'none');
 
+    %top of gyro trace
+    z_offset_trace = 0;
+    top_x = [x3_rotated(end,end) top_x(1:end-1)];
+    top_y = [y3_rotated(end,end) top_y(1:end-1)];
+    top_z = [z3_rotated(end,end)+z_offset_trace top_z(1:end-1)];
+
+    condition = top_x < 100; %filter out dummy values (for initial iterations of loop before enough of a trace is built up)
+
+    plot3(top_x(condition),top_y(condition),top_z(condition),'LineWidth',2,'Color',[0,0,0,0.5]);
+
     % Final plot settings
     view(3)
     axis(0.06*[-1 1 -1 1 0 2])
     axis square
-    xlabel('X')
-    ylabel('Y')
-    zlabel('Z')
-    title(['Gyroscope with rotor at ', num2str(delta_dot_0), ' rad/s'], 'FontSize', 18)
+    set(gca,'position',[0.01 0.01 0.99 0.99])
+    set(gca,'XTickLabel',"");
+    set(gca,'YTickLabel',"");
+    set(gca,'ZTickLabel',"");
+    grid on;
+    %title(['Gyroscope with rotor at ', num2str(delta_dot_0), ' rad/s'], 'FontSize', 18)
 
     if VIDEO
         writeVideo(MyVideo, getframe(handle));
@@ -485,6 +538,10 @@ function [Xf,Yf,Zf] = rotation(Xi,Yi,Zi,R)
             Zf(ii,jj)=vector(3);
         end
     end
+end
+
+function v_dot = deriv(t, v_f, omega)
+    v_dot = diff(v_f, t) + cross(omega,v_f); 
 end
 
 function [X,Y,Z] = create_pinwheel(x,y,z)
